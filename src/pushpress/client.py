@@ -544,6 +544,175 @@ class PushPressClient:
         )
         return out
 
+    # ---------------------------------------------------------------- appointments
+
+    async def list_appointment_types(self) -> list[dict]:
+        """List appointment-based service types (PT, physio, …)."""
+        data = await self._gql(g.QUERY_APPOINTMENT_TYPES, {})
+        return (data.get("getAppointmentTypes") or {}).get("types") or []
+
+    async def list_appointment_packages(self) -> list[dict]:
+        """List appointment packages (e.g. PT session bundles)."""
+        data = await self._gql(g.QUERY_APPOINTMENT_PACKAGES, {})
+        return (data.get("getAppointmentPackages") or {}).get("packages") or []
+
+    async def get_appointment_credits(self) -> list[dict]:
+        """Appointment-credit counts per appointment type."""
+        await self.ensure_token()
+        data = await self._gql(g.QUERY_APPOINTMENT_CREDITS, {"userUuid": self.token_user_uuid()})
+        return (data.get("getUserAppointmentCreditsCount") or {}).get("counts") or []
+
+    async def get_appointment_history(self) -> list[dict]:
+        """My upcoming/past appointments."""
+        await self.ensure_token()
+        data = await self._gql(g.QUERY_APPOINTMENT_HISTORY, {"userUuid": self.token_user_uuid()})
+        return (data.get("getUserAppointmentHistory") or {}).get("history") or []
+
+    async def get_appointment_schedule(
+        self, appointment_type_uuid: str, date_str: str, staff_uuid: str | None = None
+    ) -> list[dict]:
+        """Available appointment slots for a type on a date."""
+        data = await self._gql(
+            g.QUERY_APPOINTMENT_SCHEDULE,
+            {
+                "appointmentTypeUuid": appointment_type_uuid,
+                "date": date_str,
+                "staffUuid": staff_uuid,
+            },
+        )
+        return (data.get("getAppointmentTypeSchedule") or {}).get("slots") or []
+
+    async def book_appointment(
+        self,
+        appointment_type_uuid: str,
+        start_time: str,
+        end_time: str,
+        staff_uuid: str | None = None,
+    ) -> BookingResult:
+        """Book an appointment (PT session, etc.). ``start_time``/``end_time`` are
+        ISO datetimes."""
+        await self.ensure_token()
+        variables = {
+            "userUuid": self.token_user_uuid(),
+            "appointmentTypeUuid": appointment_type_uuid,
+            "startTime": start_time,
+            "endTime": end_time,
+            "staffUuid": staff_uuid,
+        }
+        try:
+            data = await self._gql(g.MUTATION_BOOK_APPOINTMENT, variables)
+            uuid = (data.get("bookUserAppointment") or {}).get("uuid")
+            return BookingResult(ok=True, reservation_id=uuid, message="appointment booked")
+        except PushPressError as e:
+            return BookingResult(ok=False, message=str(e))
+
+    async def cancel_appointment(self, appointment_uuid: str) -> bool:
+        """Cancel an appointment by its uuid."""
+        try:
+            await self._gql(g.MUTATION_CANCEL_APPOINTMENT, {"appointmentUuid": appointment_uuid})
+            return True
+        except PushPressError as e:
+            logger.warning("cancel_appointment failed: {}", e)
+            return False
+
+    async def reschedule_appointment(
+        self, appointment_uuid: str, start_time: str, end_time: str, staff_id: str | None = None
+    ) -> bool:
+        """Reschedule an appointment."""
+        try:
+            await self._gql(
+                g.MUTATION_RESCHEDULE_APPOINTMENT,
+                {
+                    "appointmentUuid": appointment_uuid,
+                    "startTime": start_time,
+                    "endTime": end_time,
+                    "staffId": staff_id,
+                },
+            )
+            return True
+        except PushPressError as e:
+            logger.warning("reschedule_appointment failed: {}", e)
+            return False
+
+    async def check_in_appointment(self, appointment_uuid: str) -> bool:
+        """Check in to an appointment."""
+        try:
+            await self._gql(g.MUTATION_CHECKIN_APPOINTMENT, {"appointmentUuid": appointment_uuid})
+            return True
+        except PushPressError as e:
+            logger.warning("check_in_appointment failed: {}", e)
+            return False
+
+    # ------------------------------------------------------------- check-in
+
+    async def check_in(self, reservation_id: str, source: str | None = None) -> bool:
+        """Self check-in to a booked class."""
+        try:
+            await self._gql(g.MUTATION_CHECKIN, {"reservationId": reservation_id, "source": source})
+            return True
+        except PushPressError as e:
+            logger.warning("check_in failed: {}", e)
+            return False
+
+    async def get_attendance(self, start_date: str, end_date: str) -> list[dict]:
+        """My attendance history between two dates (ISO YYYY-MM-DD)."""
+        await self.ensure_token()
+        data = await self._gql(
+            g.QUERY_ATTENDANCE,
+            {
+                "userUuid": self.token_user_uuid(),
+                "startDate": start_date,
+                "endDate": end_date,
+            },
+        )
+        return (data.get("getAttendance") or {}).get("attendances") or []
+
+    async def get_attendance_stats(self) -> dict:
+        """Attendance stats (week/month/year/allTime counts)."""
+        await self.ensure_token()
+        data = await self._gql(
+            g.QUERY_ATTENDANCE_STATS,
+            {
+                "clientUuid": self.token_client_uuid(),
+                "userUuid": self.token_user_uuid(),
+            },
+        )
+        return data.get("getAttendanceStats") or {}
+
+    # ---------------------------------------------------------- workout log
+
+    async def log_workout_score(
+        self,
+        workout_uid: str,
+        workout_part_uid: str,
+        sets: list[dict] | None = None,
+        athlete_comment: str | None = None,
+        division: str | None = None,
+        class_type_id: float | None = None,
+        date_str: str | None = None,
+    ) -> BookingResult:
+        """Log a workout score for a WOD part."""
+        variables = {
+            "workoutUid": workout_uid,
+            "workoutPartUid": workout_part_uid,
+            "sets": sets or [],
+            "athleteComment": athlete_comment,
+            "division": division,
+            "classTypeId": class_type_id,
+            "date": date_str,
+        }
+        try:
+            data = await self._gql(g.MUTATION_LOG_SCORE, variables)
+            uuid = (data.get("workoutLogScore") or {}).get("uuid")
+            return BookingResult(ok=True, reservation_id=uuid, message="score logged")
+        except PushPressError as e:
+            return BookingResult(ok=False, message=str(e))
+
+    async def get_score_history(self, keyword: str | None = None) -> list[dict]:
+        """My workout score history."""
+        data = await self._gql(g.QUERY_SCORE_HISTORY, {"keyword": keyword})
+        return (data.get("userScoreHistory") or {}).get("scoreHistory") or []
+
     def _invalidate_schedule_cache(self) -> None:
         self._schedule_cache.clear()
 

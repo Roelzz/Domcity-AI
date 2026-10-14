@@ -27,6 +27,9 @@ expiry. No manual token juggling.
 | Workout of the day | `get_workout_of_day` (WOD with structured `parts`), `get_workout_scores` |
 | Member | `get_member_info`, `get_session_credits`, `get_tenant_info` |
 | Bookings | `list_reservations`, `book_class`, `cancel_reservation`, `join_waitlist`, `leave_waitlist`, `get_class_roster` |
+| Appointments | `list_appointment_types`, `list_appointment_packages`, `get_appointment_credits`, `get_appointment_history`, `get_appointment_schedule`, `book_appointment`, `cancel_appointment`, `reschedule_appointment`, `check_in_appointment` |
+| Check-in | `check_in`, `get_attendance`, `get_attendance_stats` |
+| Workout logging | `log_workout_score`, `get_score_history` |
 
 ### Waitlist support
 
@@ -113,11 +116,16 @@ pushpress-mcp
 pushpress-mcp --transport http --host 0.0.0.0 --port 8000
 ```
 
-**Tools** (15): `list_locations`, `list_class_types`, `get_schedule`,
+**Tools** (29): `list_locations`, `list_class_types`, `get_schedule`,
 `get_class_details`, `get_member_info`, `list_reservations`,
 `get_session_credits`, `get_tenant_info`, `get_workout_of_day`,
 `get_workout_scores`, `book_class`, `cancel_reservation`, `join_waitlist`,
-`leave_waitlist`, `get_class_roster`.
+`leave_waitlist`, `get_class_roster`, `list_appointment_types`,
+`list_appointment_packages`, `get_appointment_credits`,
+`get_appointment_history`, `get_appointment_schedule`, `book_appointment`,
+`cancel_appointment`, `reschedule_appointment`, `check_in_appointment`,
+`check_in`, `get_attendance`, `get_attendance_stats`, `log_workout_score`,
+`get_score_history`.
 
 ### Auth
 

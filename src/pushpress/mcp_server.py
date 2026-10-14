@@ -170,6 +170,127 @@ def register_tools(mcp: FastMCP) -> None:
         c = await _get_client()
         return await c.get_class_roster(calendar_item_uuid)
 
+    # --- appointments ---
+
+    @mcp.tool
+    async def list_appointment_types() -> list[dict]:
+        """List appointment-based service types (personal training, physio, etc.)."""
+        c = await _get_client()
+        return await c.list_appointment_types()
+
+    @mcp.tool
+    async def list_appointment_packages() -> list[dict]:
+        """List appointment packages (e.g. PT session bundles)."""
+        c = await _get_client()
+        return await c.list_appointment_packages()
+
+    @mcp.tool
+    async def get_appointment_credits() -> list[dict]:
+        """Appointment-credit counts per appointment type."""
+        c = await _get_client()
+        return await c.get_appointment_credits()
+
+    @mcp.tool
+    async def get_appointment_history() -> list[dict]:
+        """My upcoming/past appointments."""
+        c = await _get_client()
+        return await c.get_appointment_history()
+
+    @mcp.tool
+    async def get_appointment_schedule(
+        appointment_type_uuid: str, date_str: str, staff_uuid: str | None = None
+    ) -> list[dict]:
+        """Available appointment slots for a type on a date (ISO YYYY-MM-DD)."""
+        c = await _get_client()
+        return await c.get_appointment_schedule(appointment_type_uuid, date_str, staff_uuid)
+
+    @mcp.tool
+    async def book_appointment(
+        appointment_type_uuid: str,
+        start_time: str,
+        end_time: str,
+        staff_uuid: str | None = None,
+    ) -> dict:
+        """Book an appointment (PT, etc.). ``start_time``/``end_time`` are ISO
+        datetimes. Returns ``ok``, ``reservation_id``, and ``message``."""
+        c = await _get_client()
+        result = await c.book_appointment(appointment_type_uuid, start_time, end_time, staff_uuid)
+        return result.model_dump(mode="json")
+
+    @mcp.tool
+    async def cancel_appointment(appointment_uuid: str) -> dict:
+        """Cancel an appointment by its uuid. Returns ``{"ok": bool}``."""
+        c = await _get_client()
+        return {"ok": await c.cancel_appointment(appointment_uuid)}
+
+    @mcp.tool
+    async def reschedule_appointment(
+        appointment_uuid: str, start_time: str, end_time: str, staff_id: str | None = None
+    ) -> dict:
+        """Reschedule an appointment. Returns ``{"ok": bool}``."""
+        c = await _get_client()
+        return {
+            "ok": await c.reschedule_appointment(appointment_uuid, start_time, end_time, staff_id)
+        }
+
+    @mcp.tool
+    async def check_in_appointment(appointment_uuid: str) -> dict:
+        """Check in to an appointment. Returns ``{"ok": bool}``."""
+        c = await _get_client()
+        return {"ok": await c.check_in_appointment(appointment_uuid)}
+
+    # --- check-in ---
+
+    @mcp.tool
+    async def check_in(reservation_id: str, source: str | None = None) -> dict:
+        """Self check-in to a booked class by its reservation ``id``. Returns
+        ``{"ok": bool}``."""
+        c = await _get_client()
+        return {"ok": await c.check_in(reservation_id, source)}
+
+    @mcp.tool
+    async def get_attendance(start_date: str, end_date: str) -> list[dict]:
+        """My class attendance history between two dates (ISO YYYY-MM-DD)."""
+        c = await _get_client()
+        return await c.get_attendance(start_date, end_date)
+
+    @mcp.tool
+    async def get_attendance_stats() -> dict:
+        """Class attendance stats (week/month/year/allTime counts)."""
+        c = await _get_client()
+        return await c.get_attendance_stats()
+
+    # --- workout logging ---
+
+    @mcp.tool
+    async def log_workout_score(
+        workout_uid: str,
+        workout_part_uid: str,
+        sets: list[dict] | None = None,
+        athlete_comment: str | None = None,
+        division: str | None = None,
+        class_type_id: float | None = None,
+        date_str: str | None = None,
+    ) -> dict:
+        """Log a workout score for a WOD part. Returns ``ok`` + ``reservation_id``."""
+        c = await _get_client()
+        result = await c.log_workout_score(
+            workout_uid,
+            workout_part_uid,
+            sets,
+            athlete_comment,
+            division,
+            class_type_id,
+            date_str,
+        )
+        return result.model_dump(mode="json")
+
+    @mcp.tool
+    async def get_score_history(keyword: str | None = None) -> list[dict]:
+        """My workout score history."""
+        c = await _get_client()
+        return await c.get_score_history(keyword)
+
 
 def build_mcp(token: str | None) -> FastMCP:
     auth = None

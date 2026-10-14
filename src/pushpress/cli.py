@@ -247,3 +247,159 @@ def roster(
 ) -> None:
     """Show a class roster with waitlist positions (who's on the waitlist, in order)."""
     _run(lambda c: c.get_class_roster(calendar_item_uuid))
+
+
+# --------------------------------------------------------------------------
+# appointments
+
+
+@app.command()
+def appointment_types() -> None:
+    """List appointment-based service types (PT, physio, etc.)."""
+    _run(lambda c: c.list_appointment_types())
+
+
+@app.command()
+def appointment_packages() -> None:
+    """List appointment packages (e.g. PT session bundles)."""
+    _run(lambda c: c.list_appointment_packages())
+
+
+@app.command()
+def appointment_credits() -> None:
+    """Appointment-credit counts per appointment type."""
+    _run(lambda c: c.get_appointment_credits())
+
+
+@app.command()
+def appointment_history() -> None:
+    """My upcoming/past appointments."""
+    _run(lambda c: c.get_appointment_history())
+
+
+@app.command()
+def appointment_schedule(
+    appointment_type_uuid: str = typer.Argument(..., help="Appointment type UUID"),
+    date_str: str = typer.Option(..., "--date", help="ISO date YYYY-MM-DD"),
+    staff_uuid: str = typer.Option(None, "--staff", help="Optional staff UUID"),
+) -> None:
+    """Available appointment slots for a type on a date."""
+    _run(lambda c: c.get_appointment_schedule(appointment_type_uuid, date_str, staff_uuid))
+
+
+@app.command()
+def book_appointment(
+    appointment_type_uuid: str = typer.Argument(..., help="Appointment type UUID"),
+    start_time: str = typer.Option(..., "--start", help="ISO start datetime"),
+    end_time: str = typer.Option(..., "--end", help="ISO end datetime"),
+    staff_uuid: str = typer.Option(None, "--staff", help="Optional staff UUID"),
+) -> None:
+    """Book an appointment (PT session, etc.)."""
+    _run(lambda c: c.book_appointment(appointment_type_uuid, start_time, end_time, staff_uuid))
+
+
+@app.command()
+def cancel_appointment(
+    appointment_uuid: str = typer.Argument(..., help="Appointment UUID"),
+) -> None:
+    """Cancel an appointment."""
+
+    async def _impl(c: PushPressClient) -> dict:
+        return {"ok": await c.cancel_appointment(appointment_uuid)}
+
+    _run(_impl)
+
+
+@app.command()
+def reschedule_appointment(
+    appointment_uuid: str = typer.Argument(..., help="Appointment UUID"),
+    start_time: str = typer.Option(..., "--start", help="ISO start datetime"),
+    end_time: str = typer.Option(..., "--end", help="ISO end datetime"),
+    staff_id: str = typer.Option(None, "--staff-id", help="Optional staff UUID"),
+) -> None:
+    """Reschedule an appointment."""
+
+    async def _impl(c: PushPressClient) -> dict:
+        return {
+            "ok": await c.reschedule_appointment(appointment_uuid, start_time, end_time, staff_id)
+        }
+
+    _run(_impl)
+
+
+@app.command()
+def check_in_appointment(
+    appointment_uuid: str = typer.Argument(..., help="Appointment UUID"),
+) -> None:
+    """Check in to an appointment."""
+
+    async def _impl(c: PushPressClient) -> dict:
+        return {"ok": await c.check_in_appointment(appointment_uuid)}
+
+    _run(_impl)
+
+
+# --------------------------------------------------------------------------
+# check-in
+
+
+@app.command()
+def check_in(
+    reservation_id: str = typer.Argument(..., help="Reservation UUID from `reservations`"),
+) -> None:
+    """Self check-in to a booked class."""
+
+    async def _impl(c: PushPressClient) -> dict:
+        return {"ok": await c.check_in(reservation_id)}
+
+    _run(_impl)
+
+
+@app.command()
+def attendance(
+    start_date: str = typer.Option(..., "--start", help="ISO date YYYY-MM-DD"),
+    end_date: str = typer.Option(..., "--end", help="ISO date YYYY-MM-DD"),
+) -> None:
+    """My class attendance history between two dates."""
+    _run(lambda c: c.get_attendance(start_date, end_date))
+
+
+@app.command()
+def attendance_stats() -> None:
+    """Class attendance stats (week/month/year/allTime)."""
+    _run(lambda c: c.get_attendance_stats())
+
+
+# --------------------------------------------------------------------------
+# workout logging
+
+
+@app.command()
+def log_score(
+    workout_uid: str = typer.Option(..., "--workout-uid"),
+    workout_part_uid: str = typer.Option(..., "--workout-part-uid"),
+    sets: str = typer.Option("[]", "--sets", help='JSON list e.g. \'[{"weight":50,"reps":10}]\''),
+    comment: str = typer.Option(None, "--comment"),
+    division: str = typer.Option(None, "--division"),
+    date_str: str = typer.Option(None, "--date", help="ISO date YYYY-MM-DD"),
+) -> None:
+    """Log a workout score for a WOD part."""
+    import json as _json
+
+    sets_list = _json.loads(sets)
+    _run(
+        lambda c: c.log_workout_score(
+            workout_uid,
+            workout_part_uid,
+            sets=sets_list,
+            athlete_comment=comment,
+            division=division,
+            date_str=date_str,
+        )
+    )
+
+
+@app.command()
+def score_history(keyword: str = typer.Option(None, "--keyword")) -> None:
+    """My workout score history."""
+    _run(lambda c: c.get_score_history(keyword))
