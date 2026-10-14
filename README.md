@@ -26,15 +26,18 @@ expiry. No manual token juggling.
 | Schedule | `get_schedule` (classes, spots, booked status), `get_class_details` |
 | Workout of the day | `get_workout_of_day` (WOD with structured `parts`), `get_workout_scores` |
 | Member | `get_member_info`, `get_session_credits`, `get_tenant_info` |
-| Bookings | `list_reservations`, `book_class`, `cancel_reservation` |
+| Bookings | `list_reservations`, `book_class`, `cancel_reservation`, `join_waitlist`, `leave_waitlist`, `get_class_roster` |
 
-### ⚠️ Waitlist is not available
+### Waitlist support
 
-The PushPress **member API has no waitlist mutation** — the only write operations
-exposed are `createReservation` (book) and `cancelReservation` (cancel). When a
-class is full, booking simply returns an error; there is no "add me to the
-waitlist" call. The client is structured so a waitlist mutation can be added
-later if one is ever discovered, but it is not possible today.
+The PushPress member API **does** expose waitlists (recovered by reverse-engineering
+`members.pushpress.com/main.dart.js`):
+
+- `join_waitlist(calendar_item_uuid)` — join the waitlist for a full class.
+- `leave_waitlist(reservation_uuid)` — remove yourself from a waitlist.
+- `get_class_roster(calendar_item_uuid)` — the class roster with `waitlist_priority`
+  (0 = first in line) so you can see your position.
+- `list_reservations` now includes `waitlisted` and `waitlist_until`.
 
 ## Install
 
@@ -93,6 +96,9 @@ pushpress credits
 pushpress me
 pushpress book <class-uuid>                 # sign up for a class
 pushpress cancel <reservation-uuid>         # remove yourself from a class
+pushpress waitlist <class-uuid>             # join the waitlist for a full class
+pushpress leave-waitlist <reservation-uuid> # leave a waitlist
+pushpress roster <class-uuid>               # who's on the waitlist, in order
 ```
 
 ## MCP server
@@ -107,10 +113,11 @@ pushpress-mcp
 pushpress-mcp --transport http --host 0.0.0.0 --port 8000
 ```
 
-**Tools** (12): `list_locations`, `list_class_types`, `get_schedule`,
+**Tools** (15): `list_locations`, `list_class_types`, `get_schedule`,
 `get_class_details`, `get_member_info`, `list_reservations`,
 `get_session_credits`, `get_tenant_info`, `get_workout_of_day`,
-`get_workout_scores`, `book_class`, `cancel_reservation`.
+`get_workout_scores`, `book_class`, `cancel_reservation`, `join_waitlist`,
+`leave_waitlist`, `get_class_roster`.
 
 ### Auth
 

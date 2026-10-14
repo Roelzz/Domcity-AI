@@ -31,6 +31,8 @@ class Reservation(BaseModel):
     end: datetime
     instructor: str | None = None
     cancellable: bool = True
+    waitlisted: bool = False
+    waitlist_until: str | None = None
 
 
 class BookingResult(BaseModel):

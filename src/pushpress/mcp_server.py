@@ -144,6 +144,32 @@ def register_tools(mcp: FastMCP) -> None:
         c = await _get_client()
         return {"ok": await c.cancel(reservation_uuid)}
 
+    @mcp.tool
+    async def join_waitlist(
+        calendar_item_uuid: str, waitlist_expiration_mins: int | None = None
+    ) -> dict:
+        """Join the waitlist for a class (use when the class is full). Returns
+        ``ok``, ``reservation_id`` (now a waitlist entry id), and ``message``."""
+        c = await _get_client()
+        result = await c.join_waitlist(calendar_item_uuid, waitlist_expiration_mins)
+        return result.model_dump(mode="json")
+
+    @mcp.tool
+    async def leave_waitlist(reservation_uuid: str) -> dict:
+        """Remove yourself from a waitlist by the reservation/waitlist entry ``id``
+        (from ``list_reservations``). Returns ``{"ok": bool}``."""
+        c = await _get_client()
+        return {"ok": await c.leave_waitlist(reservation_uuid)}
+
+    @mcp.tool
+    async def get_class_roster(calendar_item_uuid: str) -> list[dict]:
+        """Return a class roster with waitlist positions. Each entry has ``name``,
+        ``status``, and ``waitlist_priority`` (0 = first on the waitlist, ``null``
+        = confirmed/not waitlisted). Use this to see which number you are on the
+        waitlist."""
+        c = await _get_client()
+        return await c.get_class_roster(calendar_item_uuid)
+
 
 def build_mcp(token: str | None) -> FastMCP:
     auth = None

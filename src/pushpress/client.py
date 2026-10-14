@@ -481,6 +481,69 @@ class PushPressClient:
             logger.warning("cancel failed: {}", e)
             return False
 
+    async def join_waitlist(
+        self, calendar_item_uuid: str, waitlist_expiration_mins: int | None = None
+    ) -> BookingResult:
+        """Join the waitlist for a class (use when a class is full)."""
+        tenant = await self.get_tenant()
+        if not tenant.subscription_uuid:
+            return BookingResult(ok=False, message="No active subscription found on this account")
+        variables = {
+            "clientUserUuid": tenant.client_user_uuid,
+            "calendarItemUuid": calendar_item_uuid,
+            "subscriptionUuid": tenant.subscription_uuid,
+            "waitlistExpirationMins": waitlist_expiration_mins,
+        }
+        try:
+            data = await self._gql(g.MUTATION_JOIN_WAITLIST, variables)
+            uuid = (data.get("joinWaitlist") or {}).get("uuid")
+            if uuid:
+                self._invalidate_reservations_cache()
+                return BookingResult(ok=True, reservation_id=uuid, message="added to waitlist")
+            return BookingResult(ok=False, message="joinWaitlist returned no uuid")
+        except PushPressError as e:
+            return BookingResult(ok=False, message=str(e))
+
+    async def leave_waitlist(self, reservation_uuid: str) -> bool:
+        """Remove yourself from a waitlist (pass the reservation uuid)."""
+        try:
+            data = await self._gql(
+                g.MUTATION_REMOVE_FROM_WAITLIST, {"reservationId": reservation_uuid}
+            )
+            ok = bool((data.get("removeFromWaitlist") or {}).get("uuid"))
+            if ok:
+                self._invalidate_reservations_cache()
+            return ok
+        except PushPressError as e:
+            logger.warning("leave_waitlist failed: {}", e)
+            return False
+
+    async def get_class_roster(self, calendar_item_uuid: str) -> list[dict]:
+        """Return a class roster including waitlist entries with ``waitlist_priority``
+        (0 = first in line, ``None`` = confirmed, not waitlisted). Sorted with
+        waitlisted members first."""
+        data = await self._gql(g.QUERY_CLASS_ROSTER, {"uuid": calendar_item_uuid})
+        ci = data.get("calendarItem") or {}
+        out: list[dict] = []
+        for r in ci.get("registrations") or []:
+            out.append(
+                {
+                    "name": r.get("name"),
+                    "uuid": r.get("uuid"),
+                    "status": r.get("status"),
+                    "user_uuid": r.get("userUuid"),
+                    "registration_timestamp": r.get("registrationTimestamp"),
+                    "waitlist_priority": r.get("waitlistPriority"),
+                }
+            )
+        out.sort(
+            key=lambda x: (
+                x["waitlist_priority"] is None,
+                x["waitlist_priority"] if x["waitlist_priority"] is not None else 1 << 30,
+            )
+        )
+        return out
+
     def _invalidate_schedule_cache(self) -> None:
         self._schedule_cache.clear()
 
@@ -546,6 +609,8 @@ class PushPressClient:
             end=self._parse_dt(r.get("rawEndTime") or r.get("reservationEnd")),
             instructor=coach_name,
             cancellable=cancellable,
+            waitlisted=bool(r.get("waitlisted")),
+            waitlist_until=str(r.get("waitlistUntilTimestamp") or "") or None,
         )
 
     @staticmethod

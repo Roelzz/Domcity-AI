@@ -178,6 +178,9 @@ query GetUpcomingReservations {
     calendarItemUuid
     isActive
     isCancelled
+    lateCancel
+    waitlisted
+    waitlistUntilTimestamp
     rawStartTime: reservationStart
     rawEndTime: reservationEnd
     rawStatus: status
@@ -265,6 +268,50 @@ query GetWorkoutScores($workoutPartUid: String!, $workoutUid: String) {
       sets { weight reps }
       athleteUid
       athleteComment
+      __typename
+    }
+    __typename
+  }
+  __typename
+}
+"""
+
+# --- Waitlist --------------------------------------------------------------
+# The member app supports joining/leaving a class waitlist and reading each
+# registration's waitlistPriority (0 = first in line). These were recovered by
+# reverse-engineering members.pushpress.com/main.dart.js.
+
+MUTATION_JOIN_WAITLIST = """
+mutation JoinWaitlist($clientUserUuid: String!, $calendarItemUuid: String!, $subscriptionUuid: String!, $waitlistExpirationMins: Int) {
+  joinWaitlist(joinWaitlistInput: {clientUserUuid: $clientUserUuid, calendarItemUuid: $calendarItemUuid, subscriptionUuid: $subscriptionUuid, waitlistExpirationMins: $waitlistExpirationMins}) {
+    uuid
+    __typename
+  }
+  __typename
+}
+"""
+
+MUTATION_REMOVE_FROM_WAITLIST = """
+mutation RemoveFromWaitlist($reservationId: String!) {
+  removeFromWaitlist(removeFromWaitlistInput: {reservationId: $reservationId}) {
+    uuid
+    __typename
+  }
+  __typename
+}
+"""
+
+QUERY_CLASS_ROSTER = """
+query GetClassRoster($uuid: String!) {
+  calendarItem: getClass(getClassInput: {uuid: $uuid}) {
+    uuid
+    registrations {
+      name
+      uuid
+      status
+      userUuid
+      registrationTimestamp
+      waitlistPriority
       __typename
     }
     __typename

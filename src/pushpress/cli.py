@@ -216,3 +216,34 @@ def cancel(
         return {"ok": await c.cancel(reservation_uuid)}
 
     _run(_impl)
+
+
+@app.command()
+def waitlist(
+    calendar_item_uuid: str = typer.Argument(..., help="Class UUID from `schedule`"),
+    expiration_mins: int = typer.Option(
+        None, "--expiration-mins", help="How long the waitlist spot is held"
+    ),
+) -> None:
+    """Join the waitlist for a full class."""
+    _run(lambda c: c.join_waitlist(calendar_item_uuid, expiration_mins))
+
+
+@app.command()
+def leave_waitlist(
+    reservation_uuid: str = typer.Argument(..., help="Waitlist entry UUID from `reservations`"),
+) -> None:
+    """Remove yourself from a waitlist."""
+
+    async def _impl(c: PushPressClient) -> dict:
+        return {"ok": await c.leave_waitlist(reservation_uuid)}
+
+    _run(_impl)
+
+
+@app.command()
+def roster(
+    calendar_item_uuid: str = typer.Argument(..., help="Class UUID from `schedule`"),
+) -> None:
+    """Show a class roster with waitlist positions (who's on the waitlist, in order)."""
+    _run(lambda c: c.get_class_roster(calendar_item_uuid))
