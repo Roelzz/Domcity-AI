@@ -528,7 +528,7 @@ class PushPressClient:
         for r in ci.get("registrations") or []:
             out.append(
                 {
-                    "name": r.get("name"),
+                    "name": r.get("customerName"),
                     "uuid": r.get("uuid"),
                     "status": r.get("status"),
                     "user_uuid": r.get("userUuid"),
@@ -549,24 +549,24 @@ class PushPressClient:
     async def list_appointment_types(self) -> list[dict]:
         """List appointment-based service types (PT, physio, …)."""
         data = await self._gql(g.QUERY_APPOINTMENT_TYPES, {})
-        return (data.get("getAppointmentTypes") or {}).get("types") or []
+        return data.get("getAppointmentTypes") or []
 
     async def list_appointment_packages(self) -> list[dict]:
         """List appointment packages (e.g. PT session bundles)."""
         data = await self._gql(g.QUERY_APPOINTMENT_PACKAGES, {})
-        return (data.get("getAppointmentPackages") or {}).get("packages") or []
+        return data.get("getAppointmentPackages") or []
 
     async def get_appointment_credits(self) -> list[dict]:
         """Appointment-credit counts per appointment type."""
         await self.ensure_token()
         data = await self._gql(g.QUERY_APPOINTMENT_CREDITS, {"userUuid": self.token_user_uuid()})
-        return (data.get("getUserAppointmentCreditsCount") or {}).get("counts") or []
+        return data.get("getUserAppointmentCreditsCount") or []
 
     async def get_appointment_history(self) -> list[dict]:
         """My upcoming/past appointments."""
         await self.ensure_token()
         data = await self._gql(g.QUERY_APPOINTMENT_HISTORY, {"userUuid": self.token_user_uuid()})
-        return (data.get("getUserAppointmentHistory") or {}).get("history") or []
+        return data.get("getUserAppointmentHistory") or []
 
     async def get_appointment_schedule(
         self, appointment_type_uuid: str, date_str: str, staff_uuid: str | None = None
@@ -580,7 +580,7 @@ class PushPressClient:
                 "staffUuid": staff_uuid,
             },
         )
-        return (data.get("getAppointmentTypeSchedule") or {}).get("slots") or []
+        return data.get("getAppointmentTypeSchedule") or []
 
     async def book_appointment(
         self,
@@ -626,7 +626,7 @@ class PushPressClient:
                     "appointmentUuid": appointment_uuid,
                     "startTime": start_time,
                     "endTime": end_time,
-                    "staffId": staff_id,
+                    "staffId": staff_id or "",
                 },
             )
             return True
@@ -665,7 +665,7 @@ class PushPressClient:
                 "endDate": end_date,
             },
         )
-        return (data.get("getAttendance") or {}).get("attendances") or []
+        return data.get("getAttendance") or []
 
     async def get_attendance_stats(self) -> dict:
         """Attendance stats (week/month/year/allTime counts)."""
@@ -696,7 +696,7 @@ class PushPressClient:
             "workoutUid": workout_uid,
             "workoutPartUid": workout_part_uid,
             "sets": sets or [],
-            "athleteComment": athlete_comment,
+            "athleteComment": athlete_comment or "",
             "division": division,
             "classTypeId": class_type_id,
             "date": date_str,
@@ -711,7 +711,7 @@ class PushPressClient:
     async def get_score_history(self, keyword: str | None = None) -> list[dict]:
         """My workout score history."""
         data = await self._gql(g.QUERY_SCORE_HISTORY, {"keyword": keyword})
-        return (data.get("userScoreHistory") or {}).get("scoreHistory") or []
+        return data.get("userScoreHistory") or []
 
     def _invalidate_schedule_cache(self) -> None:
         self._schedule_cache.clear()

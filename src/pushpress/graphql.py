@@ -306,8 +306,8 @@ query GetClassRoster($uuid: String!) {
   calendarItem: getClass(getClassInput: {uuid: $uuid}) {
     uuid
     registrations {
-      name
       uuid
+      customerName
       status
       userUuid
       registrationTimestamp
@@ -321,102 +321,95 @@ query GetClassRoster($uuid: String!) {
 """
 
 # --- Appointments ----------------------------------------------------------
-# Appointment-based services (PT, physio, etc.). Recovered from the member app.
+# Appointment-based services (PT, physio, etc.). Field/argument names verified
+# against the live API.
 
 QUERY_APPOINTMENT_TYPES = """
 query AppointmentTypes {
   getAppointmentTypes {
-    types { uuid name __typename }
+    uuid
+    name
+    duration
     __typename
   }
-  __typename
 }
 """
 
 QUERY_APPOINTMENT_PACKAGES = """
 query AppointmentPackages {
   getAppointmentPackages {
-    packages { uuid name price description __typename }
+    uuid
+    name
+    description
+    longDescription
+    hasTax
+    taxPrice
     __typename
   }
-  __typename
 }
 """
 
 QUERY_APPOINTMENT_CREDITS = """
-query AppointmentCreditCounts($userUuid: String!) {
+query AppointmentCreditCounts($userUuid: ID!) {
   getUserAppointmentCreditsCount(input: {userUuid: $userUuid}) {
-    counts { appointmentTypeUuid count __typename }
+    appointmentTypeUuid
+    count
     __typename
   }
-  __typename
 }
 """
 
 QUERY_APPOINTMENT_HISTORY = """
 query AppointmentHistory($userUuid: String!) {
-  getUserAppointmentHistory(input: {userUuid: $userUuid}) {
-    history {
-      uuid
-      rawStartTime
-      rawEndTime
-      eventStatus
-      staff { uuid firstName lastName __typename }
-      type { uuid name __typename }
-      __typename
-    }
+  getUserAppointmentHistory(getUserAppointmentHistoryInput: {userUuid: $userUuid}) {
+    uuid
+    startTime
+    endTime
+    eventStatus
+    staff { uuid firstName lastName __typename }
     __typename
   }
-  __typename
 }
 """
 
 QUERY_APPOINTMENT_SCHEDULE = """
 query AppointmentTypeSchedule($appointmentTypeUuid: String!, $date: String!, $staffUuid: String) {
   getAppointmentTypeSchedule(input: {appointmentTypeUuid: $appointmentTypeUuid, date: $date, staffUuid: $staffUuid}) {
-    slots { rawStartTime rawEndTime __typename }
+    rawStartTime
+    rawEndTime
     __typename
   }
-  __typename
 }
 """
 
 MUTATION_BOOK_APPOINTMENT = """
 mutation BookAppointment($userUuid: String!, $appointmentTypeUuid: String!, $startTime: DateTime!, $endTime: DateTime!, $staffUuid: String) {
-  bookUserAppointment(input: {userUuid: $userUuid, appointmentTypeUuid: $appointmentTypeUuid, startTime: $startTime, endTime: $endTime, staffUuid: $staffUuid}) {
+  bookUserAppointment(appointmentUserBookInput: {userUuid: $userUuid, appointmentTypeUuid: $appointmentTypeUuid, startTime: $startTime, endTime: $endTime, staffUuid: $staffUuid}) {
     uuid
     __typename
   }
-  __typename
 }
 """
 
 MUTATION_CANCEL_APPOINTMENT = """
 mutation CancelAppointment($appointmentUuid: ID!) {
-  cancelAppointmentSchedule(input: {appointmentScheduleItemUuid: $appointmentUuid}) {
-    response { __typename }
-    __typename
-  }
-  __typename
+  cancelAppointmentSchedule(input: {appointmentScheduleItemUuid: $appointmentUuid})
 }
 """
 
 MUTATION_RESCHEDULE_APPOINTMENT = """
-mutation RescheduleAppointment($appointmentUuid: ID!, $startTime: DateTime!, $endTime: DateTime!, $staffId: String) {
+mutation RescheduleAppointment($appointmentUuid: ID!, $startTime: DateTime!, $endTime: DateTime!, $staffId: String!) {
   rescheduleUserAppointment(input: {appointmentScheduleItemUuid: $appointmentUuid, startTime: $startTime, endTime: $endTime, staffId: $staffId}) {
-    schedule { uuid __typename }
     __typename
   }
-  __typename
 }
 """
 
 MUTATION_CHECKIN_APPOINTMENT = """
 mutation CheckInToAppointment($appointmentUuid: String!) {
-  checkinUserAppointment(input: {appointmentScheduleUuid: $appointmentUuid}) {
+  checkinUserAppointment(appointmentUserCheckinInput: {appointmentScheduleUuid: $appointmentUuid}) {
     __typename
   }
-  __typename
 }
 """
 
@@ -424,67 +417,62 @@ mutation CheckInToAppointment($appointmentUuid: String!) {
 
 MUTATION_CHECKIN = """
 mutation CheckIn($reservationId: String!, $source: String) {
-  checkin(input: {reservationId: $reservationId, source: $source}) {
+  checkin(checkinInput: {reservationId: $reservationId, source: $source}) {
     uuid
     __typename
   }
-  __typename
 }
 """
 
 QUERY_ATTENDANCE = """
 query GetAttendances($userUuid: String!, $startDate: String!, $endDate: String!) {
-  getAttendance(input: {userUuid: $userUuid, startDate: $startDate, endDate: $endDate}) {
-    attendances { uuid type startTime title __typename }
+  getAttendance(getAttendanceInput: {userUuid: $userUuid, startDate: $startDate, endDate: $endDate}) {
+    uuid
+    type
+    startTime
+    title
     __typename
   }
-  __typename
 }
 """
 
 QUERY_ATTENDANCE_STATS = """
 query GetAttendanceStats($clientUuid: String!, $userUuid: String!) {
-  getAttendanceStats(input: {clientUuid: $clientUuid, userUuid: $userUuid}) {
+  getAttendanceStats(getAttendanceStatsInput: {clientUuid: $clientUuid, userUuid: $userUuid}) {
     week
     month
     year
     allTime
     __typename
   }
-  __typename
 }
 """
 
 # --- Workout logging -------------------------------------------------------
 
 MUTATION_LOG_SCORE = """
-mutation WorkoutLogScore($workoutUid: String!, $workoutPartUid: String!, $sets: [LogScoreSetsInput!], $athleteComment: String, $division: String, $classTypeId: Float, $date: String) {
-  workoutLogScore(input: {workoutUid: $workoutUid, workoutPartUid: $workoutPartUid, sets: $sets, athleteComment: $athleteComment, division: $division, classTypeId: $classTypeId, date: $date}) {
-    uuid
+mutation WorkoutLogScore($workoutUid: String!, $workoutPartUid: String!, $sets: [LogScoreSetsInput!]!, $athleteComment: String!, $division: String, $classTypeId: Float, $date: String) {
+  workoutLogScore(workoutLogScoreInput: {workoutUid: $workoutUid, workoutPartUid: $workoutPartUid, sets: $sets, athleteComment: $athleteComment, division: $division, classTypeId: $classTypeId, date: $date}) {
+    id
     __typename
   }
-  __typename
 }
 """
 
 QUERY_SCORE_HISTORY = """
 query UserScoreHistory($keyword: String) {
-  userScoreHistory(input: {keyword: $keyword}) {
-    scoreHistory {
-      workoutUid
-      workoutScoreId
-      primaryScore
-      secondaryScore
-      workoutDateRaw
-      workoutTitle
-      workoutPartUid
-      title
-      scoreType
-      measurementUnit
-      __typename
-    }
+  userScoreHistory(userScoreHistoryInput: {keyword: $keyword}) {
+    workoutUid
+    workoutScoreId
+    primaryScore
+    secondaryScore
+    workoutDate
+    workoutTitle
+    workoutPartUid
+    title
+    scoreType
+    measurementUnit
     __typename
   }
-  __typename
 }
 """
